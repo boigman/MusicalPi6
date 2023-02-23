@@ -77,10 +77,10 @@ void renderThread::run()
         assert(document && !document->isLocked());
         std::unique_ptr<Poppler::Page> tmpPage = document->page(mPage - 1);
         assert(tmpPage!=NULL);
-        double scaleDivisor = (double)144.0;
+        double scaleFactor = (double)144.0;
         QSizeF thisPageSize = tmpPage->pageSizeF();  // in 72's of inch
-        double scaleX = (double)mWidth / ((double)thisPageSize.width() / scaleDivisor);
-        double scaleY = (double)mHeight / ((double)thisPageSize.height() / scaleDivisor);
+        double scaleX = (double)mWidth / ((double)thisPageSize.width() / scaleFactor);
+        double scaleY = (double)mHeight / ((double)thisPageSize.height() / scaleFactor);
         double desiredScale = std::trunc(std::min(scaleX, scaleY));  // For notational scores integers seem to give better alignment, sometimes.
 
         qDebug() << "Starting render on thread " << mWhich << " id " << currentThreadId() << " for page " << mPage << ", pt size " << thisPageSize.width() << "x" << thisPageSize.height() << " at scale " << desiredScale << " targeting " << mWidth << "x" << mHeight;
