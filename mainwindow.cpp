@@ -451,6 +451,8 @@ void MainWindow::navigateTo(int nextPage)
         loadPagePendingTransition[i] = docPageLabel::noTransition;
     }
     checkQueueVsCache();
+    this->setFocus();   // added 3/9/23 - DWS
+
 }
 
 void MainWindow::HideEverything()
