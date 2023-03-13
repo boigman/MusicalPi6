@@ -123,7 +123,7 @@ void playLists::changeList(int newIndex)
 
 void playLists::newListChanged(QString val)
 {
-    if(val == "") saveNew->hide();
+     if(val == "") saveNew->hide();
     else saveNew->show();
 }
 

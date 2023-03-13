@@ -182,14 +182,25 @@ void musicLibrary::loadPlayLists()
     qDebug() << "Entered";
     dropdown->clear();
     QSqlQuery queryLists;
-    QString sql = "select id, name from tags where name like '" + calibreListPrefix + "%' order by name;";
+//    QString sql = "select id, name from tags where name like '" + calibreListPrefix + "%' order by name;";
+    QString sql = "select t.id, case instr(t.name,'|') when 0 then t.name else substr(t.name, 1, instr(t.name,'|')-1) end as tagname from tags t"
+            ", books_tags_link btl where t.id=btl.tag and t.name like '" + calibreListPrefix + "%' order by t.name;";
     queryLists.exec(sql);
     checkSqlError("Executed tag query " + sql, queryLists.lastError());
     dropdown->addItem("All items",0);
+    QString lastPlaylist="none";
     while(queryLists.next())
     {
+        QString playlist = queryLists.record().field(1).value().toString().replace(calibreListPrefix,"");
         qDebug()<<"read tags, id=" << queryLists.record().field(0).value().toInt() << ", value=" << queryLists.record().field(1).value().toString();
-        dropdown->addItem(queryLists.record().field(1).value().toString().replace(calibreListPrefix,""),queryLists.record().field(0).value().toInt());
+        if(playlist!=lastPlaylist) {
+            dropdown->addItem(playlist.replace(calibreListPrefix,""),queryLists.record().field(0).value().toInt());
+        } else {
+            int tmpIndex = dropdown->findText(playlist);
+            dropdown->removeItem(tmpIndex);
+            dropdown->addItem(playlist.replace(calibreListPrefix,""),queryLists.record().field(0).value().toInt());
+        }
+        lastPlaylist = playlist;
     }
     ActiveListIndex = dropdown->findText(ActiveList);  // We have to look it up in case they list changed so index may change
     if(ActiveListIndex == -1) ActiveListIndex = 0;  // If the current active disappeareed reset to all
@@ -213,7 +224,7 @@ void musicLibrary::loadBooks()
         (
            ActiveListIndex == 0 ? "" :
               ( "inner join books_tags_link btl3 on btl3.book = b.id "
-                "inner join tags t3 on t3.id = btl3.tag and t3.name = '" + calibreListPrefix + ActiveList + "' "
+                "inner join tags t3 on t3.id = btl3.tag and t3.name like '" + calibreListPrefix + ActiveList + "%' "
               )
         ) +
         "left join books_series_link bsl on bsl.book = b.id "
@@ -246,7 +257,11 @@ void musicLibrary::loadBooks()
            ) +
         "where t.name = '" + calibreMusicTag + "' "
         "group  by b.id, b.sort, b.author_sort, b.path, d.name "
-        "order by b.sort;";
+//        "order by b.sort;";
+        "order by " +
+        (
+            ActiveListIndex == 0 ? "b.sort;" :"substr(tags,instr(tags,'" + calibreListPrefix + ActiveList + "'));"
+        );
     queryBooks.exec(sql);
     checkSqlError("Executed book query " + sql, queryBooks.lastError());
     QSqlRecord rec = queryBooks.record();
@@ -522,9 +537,39 @@ QString musicLibrary::addBookToList(int index)
     m_db->open();
     checkSqlError("Opening SQL database " + m_db->databaseName(), m_db->lastError());
     QSqlQuery insert;
-    QString sql = "insert into books_tags_link(tag, book) values (" + QString::number(dropdown->itemData(index).toInt()) + "," + QString::number(bookIDSelected) +  ");";
+    QString sql;
+    QSqlQuery query;
+    QString qsql = "select t.name from tags t where t.name like '" + calibreListPrefix + dropdown->itemText(index) + "%' order by t.name desc;";
+    query.exec(qsql);
+    QString qresult = query.lastError().databaseText() + " / " + query.lastError().driverText();
+    bool qfound = false;
+    QString qname;
+    QString result;
+    if(qresult == " / ")
+    {
+//        qDebug() << "musicLibrary::addNewList Inserting new name";
+        while(query.next()) {
+            qfound = true;
+            qname = query.record().field(0).value().toString();
+            break;
+        }
+        if(qfound) {
+            // Got value "playlistBarnDance|01"
+            int ordinal = qname.split("|")[1].toInt();
+            ordinal++;
+            QString newName = calibreListPrefix + dropdown->itemText(index) + "|" + QString::number(ordinal).rightJustified(2, '0');
+            qDebug() << "musicLibrary::addNewList newName = " +  newName;
+            sql = "insert into tags (name) values('" + newName + "')";
+            insert.exec(sql);
+            result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
+            qDebug() << "musicLibrary::addNewList result = " +  result;
+        }
+
+    }
+    qint32 rowid = insert.lastInsertId().toInt();
+    sql = "insert into books_tags_link(tag, book) values (" + QString::number(rowid) + "," + QString::number(bookIDSelected) +  ");";
     insert.exec(sql);
-    QString result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
+    result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
     m_db->close();
     return (result == " / " ? "" : result);
 }
@@ -534,13 +579,64 @@ QString musicLibrary::removeBookFromList(int index)
     qDebug() << "Request to remove book " << bookIDSelected << " to tag id " << dropdown->itemData(index).toInt() << " which is " << dropdown->itemText(index);
     m_db->open();
     checkSqlError("Opening SQL database " + m_db->databaseName(), m_db->lastError());
-    QSqlQuery del;
-    QString sql = "delete from books_tags_link where tag = " + QString::number(dropdown->itemData(index).toInt()) + " and book = " + QString::number(bookIDSelected) +  ";";
-    del.exec(sql);
-    QString result = del.lastError().databaseText() + " / " + del.lastError().driverText();
+    QSqlQuery query;
+    QString qsql = "SELECT btl.tag, t.name as tag_name, count(1) as count FROM tags t, books_tags_link btl where t.id=btl.tag and t.name like '"
+            + calibreListPrefix + dropdown->itemText(index) + "%' and book = " + QString::number(bookIDSelected) + " order by t.name desc;";
+    query.exec(qsql);
+    QString qresult = query.lastError().databaseText() + " / " + query.lastError().driverText();
+    bool qfound = false;
+    QString qname;
+    int qtag;
+    if(qresult == " / ")
+    {
+        while(query.next()) {
+            qfound = true;
+            qtag = query.record().field(0).value().toInt();
+            qname = query.record().field(1).value().toString();
+            break;
+        }
+    }
+    if(qfound) {
+        QSqlQuery del;
+        QString sql = "delete from books_tags_link where tag = " + QString::number(qtag) + " and book = " + QString::number(bookIDSelected) +  ";";
+        del.exec(sql);
+        QString result = del.lastError().databaseText() + " / " + del.lastError().driverText();
+        if(qresult == " / ")
+        {
+            qsql = "SELECT count(1) as count FROM tags t, books_tags_link btl where t.id=btl.tag and btl.tag = " + QString::number(qtag) + ";";
+            query.exec(qsql);
+            qresult = query.lastError().databaseText() + " / " + query.lastError().driverText();
+            // Delete from tags if empty
+            if(qresult == " / ")
+            {
+                qfound = false;
+                int qcount = -1;
+                while(query.next()) {
+                    qfound = true;
+                    qcount = query.record().field(0).value().toInt();
+                    break;
+                }
+                if(qcount==0) {
+                    QString sql = "delete from tags where id = " + QString::number(qtag) + ";";
+                    del.exec(sql);
+                    QString result = del.lastError().databaseText() + " / " + del.lastError().driverText();
+                    if(qresult == " / ") {
+                        qDebug() << "Tag: " << qname << " deleted";
+                    } else {
+                        qDebug() << "Database error: " + qresult;
+                    }
+                }
+            } else {
+                qDebug() << "Database error: " + qresult;
+            }
+
+        }
+    }
+//        qDebug() << "musicLibrary::addNewList Inserting new name";
+
     m_db->close();
     changeList(ActiveListIndex);
-    return (result == " / " ? "" : result);
+    return (qresult == " / " ? "" : qresult);
 }
 QString musicLibrary::addNewList(QString name)
 {
@@ -548,17 +644,39 @@ QString musicLibrary::addNewList(QString name)
     qDebug() << "Request to insert new playList " << name;
     m_db->open();
     checkSqlError("Opening SQL database " + m_db->databaseName(), m_db->lastError());
+    QSqlQuery query;
     QSqlQuery insert;
-    QString sql = "insert into tags (name) values('" + name + "')";
-    insert.exec(sql);
-    QString result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
-    if(result == " / ")  // If no error then also add the current book to it
+    QString qsql = "select t.name from tags t where t.name like '" + name + "%' order by t.name desc;";
+    query.exec(qsql);
+    QString qresult = query.lastError().databaseText() + " / " + query.lastError().driverText();
+    bool qfound = false;
+    QString qname;
+    if(qresult == " / ")
     {
-        qint32 rowid = insert.lastInsertId().toInt();
-        sql = "insert into books_tags_link(tag, book) values (" + QString::number(rowid) + "," + QString::number(bookIDSelected) +  ");";
+//        qDebug() << "musicLibrary::addNewList Inserting new name";
+        while(query.next()) {
+            qfound = true;
+            qname = query.record().field(0).value().toString();
+            break;
+        }
+
+    }
+    QString result;
+    if(qfound) {
+        qDebug() << "musicLibrary::addNewList Query name: " + qname;
+    } else {
+        qDebug() << "musicLibrary::addNewList No Query name found: ";
+        QString sql = "insert into tags (name) values('" + name + "|01')";
         insert.exec(sql);
         result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
-        loadPlayLists();  // Need to reload since we added one -- this does not change active list though
+        if(result == " / ")  // If no error then also add the current book to it
+        {
+            qint32 rowid = insert.lastInsertId().toInt();
+            sql = "insert into books_tags_link(tag, book) values (" + QString::number(rowid) + "," + QString::number(bookIDSelected) +  ");";
+            insert.exec(sql);
+            result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
+            loadPlayLists();  // Need to reload since we added one -- this does not change active list though
+        }
     }
     m_db->close();
     return (result == " / " ? "" : result);
