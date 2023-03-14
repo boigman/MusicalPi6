@@ -305,7 +305,8 @@ void musicLibrary::showEvent(QShowEvent *e)
 {
     qDebug() << "Entered";
     (void)e;
-    if(!screenLoaded) // don't redo unless we need to
+//    if(!screenLoaded) // don't redo unless we need to
+      if(true) // temporarily deactivating previous if - sometimes missing loadPlaylists() that should be there
     {
         m_db->open();
         checkSqlError("Opening SQL database " + m_db->databaseName(), m_db->lastError());
@@ -519,8 +520,10 @@ bool musicLibrary::bookInList(int tag)
     QSqlQuery queryList;
     QString sql =
         "select count(*) as Presence "
-        "from books_tags_link btl "
-        "where btl.book = " + QString::number(bookIDSelected) + " and btl.tag = " + QString::number(tag) + ";";
+        "from books_tags_link btl, tags t, tags t2 "
+        "where btl.book = " + QString::number(bookIDSelected) + " and btl.tag = t.id "
+                                                                "and t2.id =" +  QString::number(tag) + " "
+        "and substr(t.name,1,instr(t.name,'|'))=substr(t2.name,1,instr(t2.name,'|'));";
     queryList.exec(sql);
     checkSqlError("Executed book/tag query " + sql, queryList.lastError());
     assert(queryList.next());
@@ -554,7 +557,6 @@ QString musicLibrary::addBookToList(int index)
             break;
         }
         if(qfound) {
-            // Got value "playlistBarnDance|01"
             int ordinal = qname.split("|")[1].toInt();
             ordinal++;
             QString newName = calibreListPrefix + dropdown->itemText(index) + "|" + QString::number(ordinal).rightJustified(2, '0');
@@ -571,7 +573,7 @@ QString musicLibrary::addBookToList(int index)
     insert.exec(sql);
     result = insert.lastError().databaseText() + " / " + insert.lastError().driverText();
     m_db->close();
-    return (result == " / " ? "" : result);
+    return (result == " / " ? "Added to " + dropdown->itemText(index) : result);
 }
 QString musicLibrary::removeBookFromList(int index)
 {
@@ -636,7 +638,7 @@ QString musicLibrary::removeBookFromList(int index)
 
     m_db->close();
     changeList(ActiveListIndex);
-    return (qresult == " / " ? "" : qresult);
+    return (qresult == " / " ? "Removed from " + dropdown->itemText(index) : qresult);
 }
 QString musicLibrary::addNewList(QString name)
 {
@@ -679,5 +681,5 @@ QString musicLibrary::addNewList(QString name)
         }
     }
     m_db->close();
-    return (result == " / " ? "" : result);
+    return (result == " / " ? "Added to " + name.replace(calibreListPrefix,"") : result);
 }
