@@ -69,6 +69,8 @@ public:           QComboBox* dropdown;          // dropdown combo to select the 
                   QCheckBox* checkbox2;
                   QCheckBox* checkbox3;
                   QCheckBox* checkbox4;
+                  QCheckBox* checkbox5;
+                  QCheckBox* checkbox6;
                   void keyPressEvent(QKeyEvent *e);
 private:          QListView* listDropdown;      // Used to view the combo
           QTableWidget* libTable;               // The music library display (filtered by list doesn't retrieve items, by search just hides rows)
@@ -110,6 +112,8 @@ private slots:
     void procCbox2(int);
     void procCbox3(int);
     void procCbox4(int);
+    void procCbox5(int);
+    void procCbox6(int);
 };
 
 

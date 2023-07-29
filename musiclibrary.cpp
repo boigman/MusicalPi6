@@ -71,6 +71,8 @@ musicLibrary::musicLibrary(QWidget *parent, MainWindow* mp) : QWidget(parent)
     checkbox2 = new QCheckBox(this);
     checkbox3 = new QCheckBox(this);
     checkbox4 = new QCheckBox(this);
+    checkbox5 = new QCheckBox(this);
+    checkbox6 = new QCheckBox(this);
 
     // Arrange the widgets
 
@@ -88,6 +90,8 @@ musicLibrary::musicLibrary(QWidget *parent, MainWindow* mp) : QWidget(parent)
     searchLayout->addWidget(checkbox2);
     searchLayout->addWidget(checkbox3);
     searchLayout->addWidget(checkbox4);
+    searchLayout->addWidget(checkbox5);
+    searchLayout->addWidget(checkbox6);
     checkboxLabel->setFont(QFont("Arial",12,1));
     checkboxLabel->setText("  Additional Filter(s):  ");
     checkboxAll->setText("All");
@@ -96,10 +100,16 @@ musicLibrary::musicLibrary(QWidget *parent, MainWindow* mp) : QWidget(parent)
     checkbox2->setText("CheckBox2");
     checkbox3->setText("CheckBox3");
     checkbox4->setText("CheckBox4");
+    checkbox5->setText("CheckBox5");
+    checkbox6->setText("CheckBox6");
+
     checkbox1->setVisible(false);
-    checkbox1->setVisible(false);
-    checkbox1->setVisible(false);
-    checkbox1->setVisible(false);
+    checkbox2->setVisible(false);
+    checkbox3->setVisible(false);
+    checkbox4->setVisible(false);
+    checkbox5->setVisible(false);
+    checkbox6->setVisible(false);
+
     checkboxAll->setVisible(false);
 
 
@@ -133,6 +143,8 @@ musicLibrary::musicLibrary(QWidget *parent, MainWindow* mp) : QWidget(parent)
     connect(checkbox2, SIGNAL(stateChanged(int)), this, SLOT(procCbox2(int)));
     connect(checkbox3, SIGNAL(stateChanged(int)), this, SLOT(procCbox3(int)));
     connect(checkbox4, SIGNAL(stateChanged(int)), this, SLOT(procCbox4(int)));
+    connect(checkbox5, SIGNAL(stateChanged(int)), this, SLOT(procCbox5(int)));
+    connect(checkbox6, SIGNAL(stateChanged(int)), this, SLOT(procCbox6(int)));
 
     m_db = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE"));
     m_db->setDatabaseName(calibrePath + "/" + calibreDatabase);
@@ -159,6 +171,12 @@ musicLibrary::musicLibrary(QWidget *parent, MainWindow* mp) : QWidget(parent)
         } else if(iQcount==4) {
             checkbox4->setText(queryLists.record().field(0).value().toString());
             checkbox4->setVisible(true);
+        } else if(iQcount==5) {
+            checkbox5->setText(queryLists.record().field(0).value().toString());
+            checkbox5->setVisible(true);
+        } else if(iQcount==6) {
+            checkbox6->setText(queryLists.record().field(0).value().toString());
+            checkbox6->setVisible(true);
         }
     }
     m_db->close();
@@ -255,6 +273,18 @@ void musicLibrary::loadBooks()
                    "inner join tags t6 on t6.id = btl6.tag and t6.name = '" + checkbox4->text() + "' "
                  )
            ) +
+            (
+               !checkbox5->isChecked() ? "" :
+                  ( "inner join books_tags_link btl7 on btl7.book = b.id "
+                    "inner join tags t7 on t7.id = btl7.tag and t7.name = '" + checkbox5->text() + "' "
+                  )
+            ) +
+            (
+               !checkbox6->isChecked() ? "" :
+                  ( "inner join books_tags_link btl8 on btl8.book = b.id "
+                    "inner join tags t8 on t8.id = btl8.tag and t8.name = '" + checkbox6->text() + "' "
+                  )
+            ) +
         "where t.name = '" + calibreMusicTag + "' "
         "group  by b.id, b.sort, b.author_sort, b.path, d.name "
 //        "order by b.sort;";
@@ -379,6 +409,8 @@ void musicLibrary::procCboxAll(int checkState)
         checkbox2->setChecked(true);
         checkbox3->setChecked(true);
         checkbox4->setChecked(true);
+        checkbox5->setChecked(true);
+        checkbox6->setChecked(true);
     }
     changeList(0);
 }
@@ -391,6 +423,8 @@ void musicLibrary::procCboxNone(int checkState)
         checkbox2->setChecked(false);
         checkbox3->setChecked(false);
         checkbox4->setChecked(false);
+        checkbox5->setChecked(false);
+        checkbox6->setChecked(false);
     }
     changeList(0);
 }
@@ -427,6 +461,21 @@ void musicLibrary::procCbox4(int checkState)
     changeList(0);
 }
 
+void musicLibrary::procCbox5(int checkState)
+{
+    if (checkState == Qt::Checked) {
+        checkboxNone->setChecked(false);
+    }
+    changeList(0);
+}
+
+void musicLibrary::procCbox6(int checkState)
+{
+    if (checkState == Qt::Checked) {
+        checkboxNone->setChecked(false);
+    }
+    changeList(0);
+}
 
 
 void musicLibrary::filterTable(QString filter)
