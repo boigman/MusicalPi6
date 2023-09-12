@@ -544,6 +544,9 @@ void musicLibrary::keyPressEvent(QKeyEvent *e)
         }
         qDebug() << "Received " << QKeySequence(e->key()).toString();
 //        searchBox->moveCursor (QTextCursor::End);
+        if(QKeySequence(e->key()).toString().size()>1) {
+                return;
+           }
         if( e->key()==Qt::Key_Space) {
             searchBox->insert(" ");
         } else {

@@ -294,11 +294,24 @@ void MainWindow::setPlayMode(bool _playing, int pagesToShowAcross, int pagesToSh
         menuLayoutWidget->show();
         mainMenuLayoutWidget->show();
         playerMenuLayoutWidget->show();
-        cornerleft.show();
-        cornerright.show();
     }
     pagesNowAcross = pagesToShowAcross;
     pagesNowDown = pagesToShowDown;
+    QScreen *screen = QGuiApplication::primaryScreen();
+    QRect  screenGeometry = screen->geometry();
+    int xheight = screenGeometry.height();
+    int xwidth = screenGeometry.width();
+
+    int cornermargin = 320;
+    if(pagesToShowAcross==2) {
+        cornerleft.move(0,xheight-cornermargin);
+        cornerright.move(xwidth-cornermargin-40,xheight-cornermargin);
+    } else if(pagesToShowAcross==1) {
+        cornerleft.move(240,xheight-cornermargin);
+        cornerright.move(xwidth-cornermargin-240,xheight-cornermargin);
+    }
+    cornerleft.show();
+    cornerright.show();
     // Change all widget backgrounds to the playing color, or normal color, as appropriate
 #ifndef MUSICALPI_DEBUG_WIDGET_BORDERS
     QString playBackground = "background-color: " + QString((playing ?  MUSICALPI_BACKGROUND_COLOR_PLAYING : MUSICALPI_BACKGROUND_COLOR_NORMAL));
