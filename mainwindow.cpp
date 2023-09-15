@@ -160,12 +160,12 @@ void MainWindow::setupCoreWidgets()
     playerMenuLayout->addWidget(lastButton);
     connect(lastButton,&QPushButton::clicked, [this]{navigateTo(MUSICALPI_MAXPAGES);});
 
-    oneUpButton     = new QPushButton("One Up");
+    oneUpButton     = new QPushButton("&One Up");
     playerMenuLayout->addWidget(oneUpButton);
     oneUpButton->setStyleSheet(gapStyle);
     connect(oneUpButton,&QPushButton::clicked, this, [this](){this->setPlayMode(false,1,1);});
 
-    twoUpButton     = new QPushButton("Two Up");
+    twoUpButton     = new QPushButton("&Two Up");
     playerMenuLayout->addWidget(twoUpButton);
     connect(twoUpButton,&QPushButton::clicked, this, [this](){this->setPlayMode(false,2,1);});
 
